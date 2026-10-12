@@ -1,0 +1,953 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0e13">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0e13'/%3E%3Cpath d='M6 22a10 10 0 1 1 20 0' fill='none' stroke='%2338d5ff' stroke-width='3'/%3E%3Cpath d='M16 22l5-9' stroke='%23ffb020' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>TX01 Monitor</title>
+<style>
+:root{color-scheme:dark;--bg:#19191b;--card:#1e1f21;--card2:#242527;--line:#333437;--text:#e9eaec;--mute:#8b8d92;--amber:#ffb020;--cyan:#38d5ff;--green:#3ddc84;--red:#ff5470;--r:14px;
+  --vesc-current:#e8c94a;--vesc-power:#4fb8e8;--vesc-duty:#8b6fd8;--vesc-speed:#4fb8e8;--vesc-battery:#e8485a;--vesc-temp:#4fb8e8;--vesc-cons:#4fb8e8}
+*{box-sizing:border-box;margin:0}
+html,body{background:#000;color:var(--text);font:15px/1.45 -apple-system,"SF Pro Display",system-ui,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{max-width:520px;margin:0 auto;padding:0 0 calc(54px + env(safe-area-inset-bottom));background:var(--bg)}
+.mono,code,pre,.hex{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.mute{color:var(--mute)}
+h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);font-weight:600;margin-bottom:10px}
+.wrap{padding:0 14px}
+/* Top: VESC-artige Tab-Leiste */
+.vtabs{display:flex;align-items:stretch;background:#2b2c2e;padding-top:env(safe-area-inset-top);position:sticky;top:0;z-index:6;overflow-x:auto;scrollbar-width:none}
+.vtabs::-webkit-scrollbar{display:none}
+.vtabs button{flex:1;min-width:84px;background:none;border:0;color:#aaacb0;font:inherit;font-size:14px;font-weight:700;letter-spacing:.03em;padding:13px 10px 11px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.vtabs button.act{color:#ff7a2f;border-bottom-color:#ff7a2f}
+.topmeta{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px 0;font-size:12px}
+.brand{display:flex;align-items:center;gap:8px;min-width:0}
+#devName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mute)}
+.topr{display:flex;align-items:center;gap:10px}
+.dot{width:9px;height:9px;border-radius:50%;background:#55575b;flex:none}
+.dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.demo{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.dot.wait{background:var(--red)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card2);color:var(--text);padding:10px 14px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer;min-height:44px}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:#ff7a2f;color:#1a0d02;border-color:#ff7a2f}
+.btn.sm{padding:6px 10px;min-height:34px;font-size:13px}
+.btn.rec.on{background:var(--red);border-color:var(--red);color:#fff}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,textarea{background:#0d131a;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;min-height:38px;max-width:100%}
+input[type=number]{width:84px}
+textarea{width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute)}
+label.c{display:flex;gap:8px;align-items:center;font-size:14px}
+.tab{display:none}.tab.act{display:block}
+.tab:not(#tab-dash){padding:0 14px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#2b2c2e;display:flex;align-items:center;padding:8px 14px calc(8px + env(safe-area-inset-bottom));gap:10px;z-index:6;font-size:13px;border-top:1px solid #000}
+.bar .gearbtn{width:30px;height:30px;border-radius:50%;background:#3a3b3e;border:1px solid #4a4b4e;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer}
+.bar .connlbl{flex:1;color:#8b8d92}
+.bar .canbtn{color:#8b8d92;font-weight:700;letter-spacing:.03em;background:none;border:0;font:inherit;cursor:pointer}
+/* Dashboard */
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.big{text-align:center;padding:14px 8px 12px;margin:0}
+.big .lbl{font-size:12px;letter-spacing:.1em;color:var(--mute);font-weight:600}
+.big .num{font-weight:800;font-variant-numeric:tabular-nums;font-size:clamp(46px,14vw,92px);line-height:1.02;margin-top:4px}
+.big .unit{color:var(--mute);font-weight:600;margin-top:2px}
+.big.pw .num{color:var(--amber)}.big.sp .num{color:var(--cyan)}
+.stale .num{opacity:.35}
+.gwrap{text-align:center}
+.gwrap svg{width:100%;max-width:420px;height:auto}
+.chips{display:inline-flex;gap:6px;margin-bottom:6px}
+.chip{border:1px solid var(--line);background:var(--card2);color:var(--mute);border-radius:99px;padding:5px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.chip.act{background:var(--cyan);color:#04202a;border-color:var(--cyan)}
+/* VESC-Style Rundinstrumente: ein grosses SVG, absolute Kreise wie im Original */
+.cluster{position:relative;width:100%;margin:0 auto;background:var(--bg);padding-top:14px}
+.cluster svg{width:100%;height:auto;display:block}
+.gface{fill:#2c2d30}
+.gface.small{fill:#2a2b2e}
+.grim{fill:none;stroke:#3a3b3e;stroke-width:1.5}
+.gtick{stroke:#6b6d72}.gtickMaj{stroke:#c7c9cd;stroke-width:1.4}
+.glabel{font-size:8.2px;fill:#9a9ca1;text-anchor:middle;font-family:-apple-system,system-ui,sans-serif}
+.gtitle{font-size:9.5px;fill:#c7c9cd;text-anchor:middle;letter-spacing:.06em;font-weight:600}
+.gval{font-weight:600;text-anchor:middle;fill:#f3f4f6;font-variant-numeric:tabular-nums}
+.gvalUnit{text-anchor:middle;fill:#b9bbc0}
+.gneedle{filter:drop-shadow(0 1px 1px rgba(0,0,0,.7))}
+.vesc-logo{opacity:.55}
+.gearIcon{cursor:pointer}
+.statsbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 14px 4px}
+.statsbar .l{font-size:11px;letter-spacing:.06em;color:var(--mute);text-align:center;margin-bottom:4px}
+.statsbar .v{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;text-align:center;background:#111214;border:1px solid var(--line);border-radius:8px;padding:6px 4px;color:#d8d9db;letter-spacing:.04em}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.tile{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.tile .l{font-size:11px;letter-spacing:.06em;color:var(--mute);text-transform:uppercase}
+.tile .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.tile .v small{font-size:13px;color:var(--mute);font-weight:600;margin-left:3px}
+.banner{background:#2a1f0a;border:1px solid #5a4210;color:#ffd27a;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+.banner.err{background:#2a0f16;border-color:#6a1d2c;color:#ff9fb0}
+/* Graphen */
+.gh-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.gh-head h2{margin-bottom:0}
+.graph{width:100%;height:150px;display:block}
+.graph .grid{stroke:var(--line);stroke-width:1}
+.graph .area{opacity:.16}
+.graph .line{fill:none;stroke-width:2}
+.graph .now{fill:currentColor}
+.graph .axlbl{font-size:10px;fill:var(--mute)}
+.glegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:12px}
+.glegend .it{display:flex;align-items:center;gap:5px;color:var(--mute)}
+.glegend .sw{width:10px;height:10px;border-radius:3px;flex:none}
+.rangechips{display:inline-flex;gap:6px}
+.eff-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin-top:10px}
+.ridedet-back{background:none;border:0;color:var(--cyan);font:inherit;font-weight:600;padding:6px 0;cursor:pointer}
+.chr.clickable{cursor:pointer}
+.chr.clickable:active{opacity:.7}
+/* Tree */
+.svc{margin:10px 0 4px;font-weight:700;word-break:break-all}
+.svc small{color:var(--mute);font-weight:500;margin-left:6px}
+.chr{border-top:1px solid var(--line);padding:8px 0}
+.chr .u{font-size:12px;word-break:break-all}
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:#1c2b3a;color:#9fc3e6;margin:2px 4px 2px 0}
+.pill.n{background:#12301f;color:#8ee6b0}.pill.w{background:#3a2a10;color:#ffcb7a}
+.hex{font-size:12px;color:#b5c4d4;word-break:break-all}
+.tscroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mute);font-weight:600;font-size:11px;text-transform:uppercase}
+td:first-child,th:first-child{text-align:left}
+tr.chg td{color:var(--amber)}
+.logbox{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:8px;height:260px;overflow:auto;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all}
+.map-row{border-top:1px solid var(--line);padding:10px 0}
+.map-row .nm{font-weight:700;margin-bottom:6px}
+.map-row .pv{color:var(--green);font-weight:700;font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font-weight:600;padding:4px 0}
+.warn{background:#2a1f0a;border:1px solid #5a4210;color:#ffd27a;border-radius:10px;padding:8px 10px;font-size:13px;margin:8px 0}
+#toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#e9eff6;color:#0a0e13;padding:9px 14px;border-radius:12px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+@media (max-width:420px){.btn{padding:10px 12px}}
+</style>
+</head>
+<body>
+
+<nav class="vtabs">
+  <button data-tab="dash" class="act">RT DATA</button>
+  <button data-tab="conn">VERBINDEN</button>
+  <button data-tab="map">MAPPING</button>
+  <button data-tab="log">LOG</button>
+</nav>
+<div class="topmeta">
+  <div class="brand"><span class="dot" id="dot"></span><span id="devName" class="mute">TX01 Monitor</span></div>
+  <div class="topr"><span id="pps" class="mute"></span><button id="recBtn" class="btn sm rec">● REC</button></div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<section id="tab-dash" class="tab act">
+  <div class="wrap"><div id="banner" class="banner" style="margin-top:10px">Noch keine Daten. Unter <b>Verbinden</b> den Scooter koppeln – oder unten <b>Demo</b> starten.</div></div>
+
+  <div class="cluster" id="clusterWrap"></div>
+
+  <div class="statsbar">
+    <div><div class="l">ODOMETER</div><div class="v" id="tKm">0.0</div></div>
+    <div><div class="l">TRIP</div><div class="v" id="tTripKm">0.0</div></div>
+    <div><div class="l">UP-TIME</div><div class="v" id="tUptime">00:00:00</div></div>
+  </div>
+
+  <div class="wrap">
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm" id="resetStats">Spitzen &amp; Zähler zurücksetzen</button>
+      <button class="btn sm" id="demoBtn">Demo</button>
+      <button class="btn sm" id="fsBtn">Vollbild</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card" style="margin-top:12px">
+      <div class="gh-head">
+        <h2>Verlauf</h2>
+        <div class="rangechips" id="liveRange">
+          <button class="chip act" data-sec="60">1 Min</button>
+          <button class="chip" data-sec="300">5 Min</button>
+          <button class="chip" data-sec="1800">30 Min</button>
+        </div>
+      </div>
+      <svg id="liveGraph" class="graph" viewBox="0 0 600 150" preserveAspectRatio="none"></svg>
+      <div class="glegend" id="liveLegend"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm" id="liveGraphPng">Graph als PNG</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VERBINDEN ============ -->
+<section id="tab-conn" class="tab">
+  <div class="card">
+    <h2>Verbindung</h2>
+    <div id="supportMsg" class="banner err" style="display:none"></div>
+    <div class="row">
+      <button class="btn pri" id="connBtn">Scooter verbinden</button>
+      <button class="btn" id="discBtn" disabled>Trennen</button>
+    </div>
+    <p class="mute" style="margin-top:10px;font-size:13px">Chrome/Edge zeigt eine Geräteliste – den Scooter auswählen (Name enthält vermutlich „TX01“ oder „Aovopro“; ohne Namen: per Signalstärke raten). Der Scooter darf nicht gleichzeitig mit einer anderen App verbunden sein.</p>
+    <details style="margin-top:10px">
+      <summary>Erweitert: Name-Filter &amp; zusätzliche Service-UUIDs</summary>
+      <div class="row" style="margin-top:8px">
+        <label class="f">Name beginnt mit (optional)<input id="namePrefix" placeholder="z. B. TX"></label>
+      </div>
+      <label class="f" style="margin-top:8px">Zusätzliche Service-UUIDs (kommagetrennt, 4-stellig oder voll)<textarea id="extraUuids" rows="2" placeholder="ffe0, 6e400001-b5a3-f393-e0a9-e50e24dcca9e"></textarea></label>
+      <p class="mute" style="font-size:12px;margin-top:6px">Web Bluetooth zeigt nur Services, die vorher angemeldet wurden. Die App fragt bereits viele übliche UUIDs ab. Wenn unten nichts erscheint: mit der App „nRF Connect“ die Service-UUIDs des Scooters auslesen und hier eintragen.</p>
+      <label class="c" style="margin-top:8px"><input type="checkbox" id="autosub" checked> Notify-Characteristics automatisch abonnieren</label>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Gefundene Services &amp; Characteristics</h2>
+    <div id="tree" class="mute">Noch nicht verbunden.</div>
+  </div>
+
+  <div class="card">
+    <h2>Byte-Analyse (Reverse-Engineering-Helfer)</h2>
+    <p class="mute" style="font-size:13px;margin-bottom:8px">Characteristic wählen, „Min/Max zurücksetzen“, dann Gas geben / Lenker bewegen. Bytes, die sich ändern, sind <span style="color:var(--amber)">orange</span>. Ordne sie rechts einem Messwert zu (Standard: 16-Bit little-endian); Skalierung dann im Tab „Mapping“.</p>
+    <div class="row" style="margin-bottom:8px">
+      <select id="anaChar"></select>
+      <button class="btn sm" id="anaReset">Min/Max zurücksetzen</button>
+      <span class="mute" id="anaInfo" style="font-size:12px"></span>
+    </div>
+    <div class="tscroll"><table id="anaTbl"><thead><tr><th>Offs.</th><th>Hex</th><th>u16 LE</th><th>Zuordnen</th><th>Bereich u16 LE</th><th>u16 BE</th><th>i16 LE</th><th>u8</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Experten: Daten an den Scooter senden</summary>
+      <div class="warn">Achtung: Geschriebene Bytes können Einstellungen des Controllers verändern. Nur senden, wenn du das Protokoll kennst. Die App sendet von selbst <b>nie</b> etwas.</div>
+      <label class="c"><input type="checkbox" id="wrOk"> Ich weiß, was ich tue</label>
+      <div class="row" style="margin-top:8px">
+        <select id="wrChar"></select>
+        <input id="wrHex" class="mono" placeholder="Hex, z. B. 55 AA 03 20 01" style="flex:1;min-width:180px">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label class="f">Wiederholen alle (ms, 0 = einmal)<input type="number" id="wrEvery" value="0" min="0" step="50"></label>
+        <button class="btn" id="wrSend">Senden</button>
+        <button class="btn" id="wrStop">Stopp</button>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ MAPPING ============ -->
+<section id="tab-map" class="tab">
+  <div class="card">
+    <h2>Messwerte aus Bytes lesen</h2>
+    <p class="mute" style="font-size:13px">Pro Messwert: welche Characteristic, ab welchem Byte, wie viele Bytes, Byte-Reihenfolge, Vorzeichen. Wert&nbsp;=&nbsp;Rohwert&nbsp;×&nbsp;Skalierung&nbsp;+&nbsp;Offset. „Nur wenn Frame beginnt mit“ trennt verschiedene Telegramm-Typen. Fehlt Watt, wird es aus Spannung × Strom berechnet. Einstellungen werden im Browser gespeichert.</p>
+    <div id="mapRows"></div>
+  </div>
+  <div class="card">
+    <h2>Anzeige</h2>
+    <div class="row">
+      <label class="f">Skalenende Power (±W)<input type="number" id="maxW" min="100" step="100"></label>
+      <label class="f">Skalenende Speed (km/h)<input type="number" id="maxKmh" min="5" step="5"></label>
+      <label class="f">Skalenende Current (±A)<input type="number" id="maxA" min="5" step="5"></label>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LOG ============ -->
+<section id="tab-log" class="tab">
+  <div class="card">
+    <h2>Rohdaten</h2>
+    <div class="row" style="margin-bottom:8px">
+      <select id="logChar"><option value="">alle</option></select>
+      <label class="c"><input type="checkbox" id="logPause"> Pause</label>
+      <button class="btn sm" id="logClear">Leeren</button>
+      <button class="btn sm" id="logCsv">CSV</button>
+    </div>
+    <div class="logbox mono" id="logBox"></div>
+  </div>
+  <div class="card">
+    <h2>Gespeicherte Fahrten</h2>
+    <div id="rides" class="mute">Noch keine Fahrten. Mit „● REC“ oben aufzeichnen.</div>
+  </div>
+</section>
+
+<!-- ============ FAHRT-DETAIL ============ -->
+<section id="tab-ride" class="tab">
+  <div class="card">
+    <button class="ridedet-back" id="rideBack">‹ Zurück zu Fahrten</button>
+    <h2 id="rideTitle" style="margin-top:8px">Fahrt</h2>
+    <div class="eff-tiles" id="rideStats"></div>
+  </div>
+  <div class="card">
+    <div class="gh-head">
+      <h2>Verlauf der Fahrt</h2>
+    </div>
+    <svg id="rideGraph" class="graph" viewBox="0 0 600 150" preserveAspectRatio="none"></svg>
+    <div class="glegend" id="rideLegend"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm" id="rideGraphPng">Graph als PNG</button>
+      <button class="btn sm" id="rideCsvBtn">CSV</button>
+    </div>
+  </div>
+</section>
+
+<div class="bar">
+  <button class="gearbtn" id="barGear" title="Verbinden" aria-label="Verbinden">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c7c9cd" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+  <span class="connlbl" id="barStatus">Not connected</span>
+  <button class="canbtn" id="barCan">CAN →</button>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ---------- Helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const toHex=b=>[...b].map(x=>x.toString(16).padStart(2,'0')).join(' ');
+const parseHex=s=>{const c=(s||'').replace(/0x/gi,'').replace(/[^0-9a-f]/gi,'');if(!c.length||c.length%2)return null;return Uint8Array.from(c.match(/../g).map(h=>parseInt(h,16)))};
+const BASE='-0000-1000-8000-00805f9b34fb';
+function normUuid(s){s=(s||'').trim().toLowerCase().replace(/^0x/,'');
+  if(/^[0-9a-f]{4}$/.test(s))return `0000${s}${BASE}`;
+  if(/^[0-9a-f]{8}$/.test(s))return `${s}${BASE}`;
+  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(s))return s;return null}
+const shortUuid=u=>(u.endsWith(BASE)&&u.startsWith('0000'))?u.slice(4,8):u;
+const KNOWN={'1800':'Generic Access','1801':'Generic Attribute','180a':'Device Information','180f':'Battery',
+  'ffe0':'UART-Bridge (HM-10/JDY-Typ, häufig)','fff0':'Custom-UART (häufig)','6e400001-b5a3-f393-e0a9-e50e24dcca9e':'Nordic UART (NUS)',
+  '6e400002-b5a3-f393-e0a9-e50e24dcca9e':'NUS RX (schreiben)','6e400003-b5a3-f393-e0a9-e50e24dcca9e':'NUS TX (Notify)',
+  'ffe1':'UART-Daten (häufig)','2a00':'Gerätename','2a19':'Akkustand'};
+const DEFAULT_SERVICES=['1800','1801','180a','180f','ffe0','ffe5','fff0','ffb0','ffc0','ffd0','ff00','fe00','fee0','fee7','fa00','ae00','abf0','18f0','fe95','fe59','1530',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e','00010203-0405-0607-0809-0a0b0c0d1912','1d14d6ee-fd63-4fa1-bfa4-8f47b42119f0'];
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2600)}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad=(n,l=2)=>String(n).padStart(l,'0');
+const clock=t=>{const d=new Date(t);return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(),3)}`};
+function download(name,text,type='text/csv'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+
+/* ---------- State ---------- */
+const FIELDS=[
+  {id:'speed',label:'Geschwindigkeit',unit:'km/h',dec:1,short:'km/h'},
+  {id:'power',label:'Leistung',unit:'W',dec:0,short:'Watt'},
+  {id:'voltage',label:'Spannung',unit:'V',dec:1,short:'V'},
+  {id:'current',label:'Motorstrom',unit:'A',dec:1,short:'A'},
+  {id:'battery',label:'Akku',unit:'%',dec:0,short:'%'},
+  {id:'temp',label:'Temperatur',unit:'°C',dec:0,short:'°C'}];
+const defMapping=()=>Object.fromEntries(FIELDS.map(f=>[f.id,{src:'',off:0,len:2,le:true,signed:false,scale:1,add:0,prefix:''}]));
+const S={
+  device:null,chars:new Map(),manualDisc:false,demo:false,connected:false,
+  values:{},lastT:{},mapping:Object.assign(defMapping(),store.get('tx01.mapping',{})),
+  maxW:store.get('tx01.maxW',2000),maxKmh:store.get('tx01.maxKmh',50),maxA:store.get('tx01.maxA',60),
+  raw:[],peakW:0,maxV:0,wh:0,km:0,lastInt:0,pkts:0,pktsPrev:0,rideStartT:null,
+  rec:null,wake:null,wrTimer:null
+};
+
+/* ---------- Tabs ---------- */
+function showTab(id){$$('.tab').forEach(t=>t.classList.toggle('act',t.id==='tab-'+id));$$('.vtabs button').forEach(b=>b.classList.toggle('act',b.dataset.tab===id));if(id!=='ride')store.set('tx01.tab',id);window.scrollTo(0,0);if(id==='log')renderLog();if(id==='map')renderMapping()}
+$$('.vtabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+$('#barGear').onclick=()=>showTab('conn');
+$('#barCan').onclick=()=>showTab('conn');
+
+/* ---------- Status ---------- */
+function setStatus(){
+  const dot=$('#dot');dot.className='dot'+(S.demo?' demo':S.connected?' on':(S.device?' wait':''));
+  $('#devName').textContent=S.demo?'Demo':(S.device?(S.device.name||'(ohne Name)'):'TX01 Monitor');
+  $('#connBtn').disabled=S.connected;$('#discBtn').disabled=!S.connected;
+  $('#barStatus').textContent=S.demo?'Demo':(S.connected?('Connected'+(S.device&&S.device.name?' · '+S.device.name:'')):'Not connected');
+}
+
+/* ---------- BLE ---------- */
+function serviceList(){
+  const extra=$('#extraUuids').value.split(/[,\s]+/).map(normUuid).filter(Boolean);
+  return [...new Set([...DEFAULT_SERVICES.map(normUuid),...extra])];
+}
+async function connect(){
+  if(!navigator.bluetooth){toast('Web Bluetooth nicht verfügbar');return}
+  store.set('tx01.extra',$('#extraUuids').value);store.set('tx01.prefix',$('#namePrefix').value);
+  const pre=$('#namePrefix').value.trim();
+  const opts=pre?{filters:[{namePrefix:pre}],optionalServices:serviceList()}:{acceptAllDevices:true,optionalServices:serviceList()};
+  try{
+    stopDemo();
+    const dev=await navigator.bluetooth.requestDevice(opts);
+    S.device=dev;S.manualDisc=false;setStatus();
+    dev.addEventListener('gattserverdisconnected',onDisconnected);
+    await openGatt(dev);
+  }catch(e){
+    if(e&&e.name==='NotFoundError'){toast('Abgebrochen – kein Gerät gewählt');}
+    else{toast('Fehler: '+(e&&e.message||e));logLine('connect: '+(e&&e.message||e))}
+    S.connected=false;setStatus();
+  }
+}
+async function openGatt(dev){
+  const server=await dev.gatt.connect();
+  S.connected=true;setStatus();toast('Verbunden mit '+(dev.name||'Gerät'));
+  if(!S.rideStartT)S.rideStartT=Date.now();
+  await discover(server);acquireWake();
+}
+async function discover(server){
+  S.chars.clear();let services=[];
+  try{services=await server.getPrimaryServices()}catch(e){logLine('getPrimaryServices: '+e.message)}
+  let idx=0;
+  for(const svc of services){
+    let chs=[];try{chs=await svc.getCharacteristics()}catch(e){logLine(`Service ${shortUuid(svc.uuid)}: ${e.message}`);continue}
+    for(const ch of chs){
+      const key=`${svc.uuid}/${ch.uuid}`;
+      S.chars.set(key,{key,idx:idx++,svc:svc.uuid,uuid:ch.uuid,ch,props:ch.properties,n:0,nPrev:0,rate:0,last:null,min:[],max:[],sub:false,handler:null});
+    }
+  }
+  if(!services.length)toast('Keine Services sichtbar – UUIDs unter „Erweitert“ ergänzen');
+  renderTree();renderSelects();
+  if($('#autosub').checked)for(const r of S.chars.values())if(r.props.notify||r.props.indicate)await subscribe(r);
+  renderTree();
+}
+async function subscribe(r){
+  try{
+    r.handler=ev=>{const dv=ev.target.value;onFrame(r,new Uint8Array(dv.buffer.slice(dv.byteOffset,dv.byteOffset+dv.byteLength)),'rx')};
+    r.ch.addEventListener('characteristicvaluechanged',r.handler);
+    await r.ch.startNotifications();r.sub=true;
+  }catch(e){logLine(`Abo ${shortUuid(r.uuid)}: ${e.message}`);r.ch.removeEventListener('characteristicvaluechanged',r.handler);r.sub=false}
+}
+async function unsubscribe(r){
+  try{await r.ch.stopNotifications()}catch{}
+  r.ch.removeEventListener('characteristicvaluechanged',r.handler);r.sub=false;
+}
+async function readChar(r){
+  try{const dv=await r.ch.readValue();onFrame(r,new Uint8Array(dv.buffer.slice(dv.byteOffset,dv.byteOffset+dv.byteLength)),'rd')}
+  catch(e){toast('Lesen fehlgeschlagen: '+e.message)}
+}
+let retry=0;
+async function onDisconnected(){
+  S.connected=false;setStatus();releaseWake();
+  if(S.manualDisc||!S.device)return;
+  toast('Verbindung verloren – versuche erneut…');
+  for(retry=1;retry<=4&&!S.connected&&!S.manualDisc;retry++){
+    await new Promise(r=>setTimeout(r,retry*1500));
+    try{await openGatt(S.device);return}catch(e){logLine('Reconnect '+retry+': '+e.message)}
+  }
+  if(!S.connected)toast('Neu verbinden fehlgeschlagen');
+}
+function disconnect(){
+  S.manualDisc=true;clearInterval(S.wrTimer);
+  try{S.device&&S.device.gatt.connected&&S.device.gatt.disconnect()}catch{}
+  S.connected=false;setStatus();releaseWake();
+}
+
+/* ---------- Frames & Mapping ---------- */
+function extract(b,m){
+  if(m.prefix){const p=parseHex(m.prefix);if(p){if(b.length<p.length)return null;for(let i=0;i<p.length;i++)if(b[i]!==p[i])return null}}
+  const n=m.len;if(m.off<0||m.off+n>b.length)return null;
+  const dv=new DataView(b.buffer,b.byteOffset,b.byteLength);let v;
+  if(n===1)v=m.signed?dv.getInt8(m.off):dv.getUint8(m.off);
+  else if(n===2)v=m.signed?dv.getInt16(m.off,m.le):dv.getUint16(m.off,m.le);
+  else v=m.signed?dv.getInt32(m.off,m.le):dv.getUint32(m.off,m.le);
+  return v*m.scale+m.add;
+}
+function onFrame(r,b,dir){
+  const now=Date.now();
+  r.n++;r.last=b;S.pkts++;
+  for(let i=0;i<b.length;i++){if(r.min[i]===undefined||b[i]<r.min[i])r.min[i]=b[i];if(r.max[i]===undefined||b[i]>r.max[i])r.max[i]=b[i]}
+  // u16-LE-Bereiche für die Analyse
+  r.u16=r.u16||[];
+  for(let i=0;i+1<b.length;i++){const v=b[i]|(b[i+1]<<8);const o=r.u16[i]||(r.u16[i]={min:v,max:v});if(v<o.min)o.min=v;if(v>o.max)o.max=v}
+  logRaw(now,r.key,b,dir);
+  for(const f of FIELDS){const m=S.mapping[f.id];if(m.src===r.key){const v=extract(b,m);if(v!=null&&isFinite(v)){S.values[f.id]=v;S.lastT[f.id]=now}}}
+}
+function logRaw(t,key,b,dir){
+  S.raw.push({t,key,hex:toHex(b),dir});
+  if(S.raw.length>4000)S.raw.splice(0,1000);
+}
+function logLine(msg){S.raw.push({t:Date.now(),key:'',hex:msg,dir:'!'})}
+const fresh=id=>S.lastT[id]&&Date.now()-S.lastT[id]<3000;
+function cur(id){
+  if(id==='power'){
+    if(fresh('power'))return S.values.power;
+    if(fresh('voltage')&&fresh('current'))return S.values.voltage*S.values.current;
+    return null;
+  }
+  return fresh(id)?S.values[id]:null;
+}
+
+/* ---------- Demo ---------- */
+let demoT=null,demoStart=0;
+function startDemo(){
+  if(S.connected)return toast('Erst trennen, dann Demo');
+  S.demo=true;demoStart=performance.now();setStatus();
+  if(!S.rideStartT)S.rideStartT=Date.now();
+  demoT=setInterval(()=>{
+    const t=(performance.now()-demoStart)/1000,now=Date.now();
+    const thr=Math.max(0,Math.sin(t/3.2))*(0.55+0.45*Math.sin(t/1.3));   // 0..1
+    const spd=thr*26+Math.random()*.2, A=thr*28+Math.random()*.4-.2, V=54-thr*3.2;
+    Object.assign(S.values,{speed:spd,current:A,voltage:V,power:A*V,battery:Math.max(5,92-t/60),temp:28+Math.min(25,t/20)});
+    for(const k of ['speed','current','voltage','power','battery','temp'])S.lastT[k]=now;
+    S.pkts++;
+  },100);
+  $('#demoBtn').textContent='Demo stoppen';
+}
+function stopDemo(){if(!S.demo)return;clearInterval(demoT);S.demo=false;setStatus();$('#demoBtn').textContent='Demo'}
+
+/* ---------- Wake lock ---------- */
+async function acquireWake(){try{if('wakeLock' in navigator&&!S.wake){S.wake=await navigator.wakeLock.request('screen');S.wake.addEventListener('release',()=>S.wake=null)}}catch{}}
+function releaseWake(){try{S.wake&&S.wake.release()}catch{}S.wake=null}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(S.connected||S.demo))acquireWake()});
+
+/* ---------- Live-Puffer für Graph ---------- */
+const LIVEBUF_SEC=1800; // 30 Min Vorrat
+S.liveBuf=[]; // {t, speed, power, voltage, current}
+function pushLiveSample(){
+  if(!S.connected&&!S.demo)return;
+  const now=Date.now();
+  S.liveBuf.push({t:now,speed:cur('speed'),power:cur('power'),voltage:cur('voltage'),current:cur('current')});
+  const cutoff=now-LIVEBUF_SEC*1000;
+  while(S.liveBuf.length&&S.liveBuf[0].t<cutoff)S.liveBuf.shift();
+}
+setInterval(pushLiveSample,500);
+S.liveRangeSec=60;
+$('#liveRange').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-sec]');if(!b)return;
+  S.liveRangeSec=+b.dataset.sec;$$('#liveRange .chip').forEach(c=>c.classList.toggle('act',c===b));
+});
+
+/* ---------- Graph-Zeichnen (SVG) ---------- */
+const GRAPH_SERIES=[
+  {id:'power',label:'Watt',unit:'W',color:'#ffb020'},
+  {id:'speed',label:'km/h',unit:'km/h',color:'#38d5ff'},
+  {id:'voltage',label:'Volt',unit:'V',color:'#3ddc84'},
+  {id:'current',label:'Ampere',unit:'A',color:'#ff5470'}
+];
+function niceMax(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;const step=n<=1?1:n<=2?2:n<=5?5:10;return step*p}
+function drawSeriesGraph(svgEl,legendEl,points,tStart,tEnd){
+  const W=600,H=150,padL=4,padR=4,padT=8,padB=18;
+  const innerW=W-padL-padR,innerH=H-padT-padB;
+  svgEl.innerHTML='';
+  const span=Math.max(1,tEnd-tStart);
+  // Gridlinien (horizontal, 4 Stück)
+  let g='';
+  for(let i=0;i<=3;i++){const y=padT+innerH*i/3;g+=`<line class="grid" x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}"/>`}
+  svgEl.insertAdjacentHTML('beforeend',g);
+  if(!points.length){svgEl.insertAdjacentHTML('beforeend',`<text x="${W/2}" y="${H/2}" text-anchor="middle" class="axlbl" font-size="13">Noch keine Daten</text>`);legendEl.innerHTML='';return}
+  const legendHtml=[];
+  for(const s of GRAPH_SERIES){
+    const vals=points.map(p=>p[s.id]).filter(v=>v!=null&&isFinite(v));
+    if(!vals.length)continue;
+    const maxV=niceMax(Math.max(...vals,0.001));
+    const pathPts=[];
+    for(const p of points){
+      const v=p[s.id];if(v==null||!isFinite(v))continue;
+      const x=padL+innerW*(p.t-tStart)/span;
+      const y=padT+innerH*(1-Math.max(0,Math.min(1,v/maxV)));
+      pathPts.push([x,y]);
+    }
+    if(pathPts.length<2)continue;
+    const d='M'+pathPts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L ');
+    const areaD=d+` L ${pathPts[pathPts.length-1][0].toFixed(1)} ${(padT+innerH).toFixed(1)} L ${pathPts[0][0].toFixed(1)} ${(padT+innerH).toFixed(1)} Z`;
+    svgEl.insertAdjacentHTML('beforeend',`<path class="area" d="${areaD}" fill="${s.color}"/><path class="line" d="${d}" stroke="${s.color}"/>`);
+    const last=pathPts[pathPts.length-1],lastVal=vals[vals.length-1];
+    svgEl.insertAdjacentHTML('beforeend',`<circle class="now" cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="${s.color}"/>`);
+    legendHtml.push(`<span class="it"><span class="sw" style="background:${s.color}"></span>${s.label}: ${lastVal.toFixed(s.id==='power'?0:1)} ${s.unit} · max ${Math.max(...vals).toFixed(s.id==='power'?0:1)}</span>`);
+  }
+  legendEl.innerHTML=legendHtml.join('');
+}
+function drawLiveGraph(){
+  if(!$('#tab-dash').classList.contains('act'))return;
+  const now=Date.now(),from=now-S.liveRangeSec*1000;
+  const pts=S.liveBuf.filter(p=>p.t>=from);
+  drawSeriesGraph($('#liveGraph'),$('#liveLegend'),pts,from,now);
+}
+function svgToPng(svgEl,filename){
+  const W=svgEl.viewBox.baseVal.width||600,H=svgEl.viewBox.baseVal.height||150,scale=2;
+  const clone=svgEl.cloneNode(true);
+  clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  clone.setAttribute('width',W);clone.setAttribute('height',H);
+  const bg=document.createElementNS(NS,'rect');bg.setAttribute('x',0);bg.setAttribute('y',0);bg.setAttribute('width',W);bg.setAttribute('height',H);bg.setAttribute('fill','#121922');
+  clone.insertBefore(bg,clone.firstChild);
+  const xml=new XMLSerializer().serializeToString(clone);
+  const svgBlob=new Blob([xml],{type:'image/svg+xml;charset=utf-8'});
+  const url=URL.createObjectURL(svgBlob);
+  const img=new Image();
+  img.onload=()=>{
+    const canvas=document.createElement('canvas');canvas.width=W*scale;canvas.height=H*scale;
+    const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.drawImage(img,0,0,W,H);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)},'image/png');
+  };
+  img.onerror=()=>toast('PNG-Export fehlgeschlagen');
+  img.src=url;
+}
+$('#liveGraphPng').onclick=()=>svgToPng($('#liveGraph'),`tx01-verlauf-${Date.now()}.png`);
+
+/* ---------- Fahrt-Detail ---------- */
+let curRideId=null;
+function rideSamplesToPoints(samples){
+  // Reihenfolge: ms, kmh, watt, volt, ampere, akku, temp
+  return samples.map(s=>({t:s[0],speed:s[1]===''?null:s[1],power:s[2]===''?null:s[2],voltage:s[3]===''?null:s[3],current:s[4]===''?null:s[4]}));
+}
+async function openRide(id){
+  const r=await idb.tx('readonly',st=>st.get(id));if(!r)return;
+  curRideId=id;
+  const dur=r.dur,mins=dur/60000;
+  const whs=r.samples.map(s=>s[2]).filter(v=>v!=='');
+  let wh=0;for(let i=1;i<r.samples.length;i++){const dt=(r.samples[i][0]-r.samples[i-1][0])/3600000;const p=r.samples[i][2];if(p!=='')wh+=p*dt}
+  const km=(r.maxKmh&&r.samples.length)?(()=>{let k=0;for(let i=1;i<r.samples.length;i++){const dt=(r.samples[i][0]-r.samples[i-1][0])/3600000;const v=r.samples[i][1];if(v!=='')k+=v*dt}return k})():0;
+  const whPerKm=km>0.05?wh/km:null;
+  $('#rideTitle').textContent='Fahrt '+new Date(r.start).toLocaleString('de-DE');
+  $('#rideStats').innerHTML=`
+    <div class="tile"><div class="l">Dauer</div><div class="v">${mins.toFixed(1)}<small>min</small></div></div>
+    <div class="tile"><div class="l">Strecke</div><div class="v">${km.toFixed(2)}<small>km</small></div></div>
+    <div class="tile"><div class="l">Max Leistung</div><div class="v">${Math.round(r.maxW)}<small>W</small></div></div>
+    <div class="tile"><div class="l">Max Tempo</div><div class="v">${r.maxKmh.toFixed(1)}<small>km/h</small></div></div>
+    <div class="tile"><div class="l">Energie</div><div class="v">${wh.toFixed(1)}<small>Wh</small></div></div>
+    <div class="tile"><div class="l">Effizienz</div><div class="v">${whPerKm!=null?whPerKm.toFixed(1):'—'}<small>Wh/km</small></div></div>`;
+  const pts=rideSamplesToPoints(r.samples);
+  const tStart=pts.length?pts[0].t:0,tEnd=pts.length?pts[pts.length-1].t:1;
+  drawSeriesGraph($('#rideGraph'),$('#rideLegend'),pts,tStart,tEnd);
+  showTab('ride');
+}
+$('#rideBack').onclick=()=>showTab('log');
+$('#rideGraphPng').onclick=()=>svgToPng($('#rideGraph'),`tx01-fahrt-graph-${curRideId}.png`);
+$('#rideCsvBtn').onclick=async()=>{if(curRideId==null)return;const r=await idb.tx('readonly',st=>st.get(curRideId));if(r)download(`tx01-fahrt-${r.start}.csv`,ridesCsv(r))};
+
+/* ---------- VESC-Style Rundinstrumente: ein gemeinsames SVG-Canvas, feste Kreis-Positionen wie im Original ---------- */
+const NS='http://www.w3.org/2000/svg';
+const ARC_START=-135,ARC_END=135,ARC_SPAN=ARC_END-ARC_START;
+function polar(cx,cy,r,deg){const rad=(deg-90)*Math.PI/180;return [cx+r*Math.cos(rad),cy+r*Math.sin(rad)]}
+function svgEl(tag,attrs){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e}
+const CW=400,CH=560; // Canvas-Größe (Breite x Höhe), Proportion wie Screenshot
+
+function gaugeDefs(){
+  const pw=S.maxW,sp=S.maxKmh,am=S.maxA;
+  return {
+    current:{title:'CURRENT',unit:'A',min:-am,max:am,majStep:niceStep(am*2,6),needle:'#e8c94a',cx:68,cy:92,r:66,small:true},
+    power:{title:'POWER',unit:'W',min:-pw,max:pw,majStep:niceStep(pw*2,4),needle:'#4fb8e8',cx:200,cy:84,r:80,small:true,fmt:v=>Math.abs(v)>=1000?(Math.round(v/100)/10)+'k':Math.round(v)},
+    duty:{title:'DUTY',unit:'%',min:-100,max:100,majStep:25,needle:'#8b6fd8',cx:332,cy:92,r:66,small:true},
+    speed:{title:'SPEED',unit:'MPH',min:0,max:sp,majStep:niceStep(sp,6),needle:'#4fb8e8',cx:148,cy:320,r:158,big:true},
+    battery:{title:'BATTERY',unit:'%',min:0,max:100,majStep:25,needle:'#e8485a',cx:318,cy:292,r:98,mid:true,extra:'range'},
+    temp:{title:'TEMP\nMOTOR',unit:'°C',min:0,max:100,majStep:25,needle:'#4fb8e8',cx:70,cy:495,r:68,small:true},
+    cons:{title:'CONSUMP.',unit:'WH/MI',sub:'AVG',min:-50,max:50,majStep:10,needle:'#4fb8e8',cx:208,cy:505,r:80,small:true},
+  };
+}
+function niceStep(range,divisions){const raw=range/divisions;const p=Math.pow(10,Math.floor(Math.log10(raw)));const n=raw/p;const s=n<=1?1:n<=2?2:n<=5?5:10;return Math.max(s*p,0.0001)}
+let GAUGES=gaugeDefs();
+const gaugeState={};
+function drawFace(svg,g){
+  const cx=g.cx,cy=g.cy,R=g.r;
+  svg.appendChild(svgEl('circle',{cx,cy,r:R,class:'gface'}));
+  svg.appendChild(svgEl('circle',{cx,cy,r:R,class:'grim'}));
+  const range=g.max-g.min,minStep=g.majStep/5;
+  for(let v=g.min;v<=g.max+1e-9;v+=minStep){
+    const frac=(v-g.min)/range,deg=ARC_START+ARC_SPAN*frac;
+    const isMaj=Math.abs(Math.round((v-g.min)/g.majStep)-(v-g.min)/g.majStep)<1e-6;
+    const r0=R*(isMaj?0.78:0.87),r1=R*0.95;
+    const [x0,y0]=polar(cx,cy,r0,deg),[x1,y1]=polar(cx,cy,r1,deg);
+    svg.appendChild(svgEl('line',{x1:x0.toFixed(2),y1:y0.toFixed(2),x2:x1.toFixed(2),y2:y1.toFixed(2),class:isMaj?'gtickMaj':'gtick'}));
+  }
+  for(let v=g.min;v<=g.max+1e-9;v+=g.majStep){
+    const frac=(v-g.min)/range,deg=ARC_START+ARC_SPAN*frac;
+    const [tx,ty]=polar(cx,cy,R*0.64,deg);
+    const t=svgEl('text',{x:tx.toFixed(2),y:(ty+3).toFixed(2),class:'glabel',style:g.big?'font-size:12px':g.mid?'font-size:9.5px':'font-size:7.6px'});
+    t.textContent=Math.abs(v)>=1000?(v/1000)+'k':Math.round(v);
+    svg.appendChild(t);
+  }
+}
+function buildAllGauges(){
+  GAUGES=gaugeDefs();
+  const host=$('#clusterWrap');host.innerHTML='';
+  const svg=svgEl('svg',{viewBox:`0 0 ${CW} ${CH}`,role:'img','aria-label':'Live-Instrumente'});
+  // Reihenfolge: kleine Gauges zuerst (unten in z-Order), große/mittlere zuletzt (oben), Speed-Rim zuoberst für sauberen Rand
+  drawFace(svg,GAUGES.current);drawFace(svg,GAUGES.power);drawFace(svg,GAUGES.duty);
+  drawFace(svg,GAUGES.temp);drawFace(svg,GAUGES.cons);
+  drawFace(svg,GAUGES.speed);
+  drawFace(svg,GAUGES.battery);
+  // VESC-Logo im freien Zwischenraum rechts oberhalb der Battery-Gauge
+  const logoG=svgEl('g',{class:'vesc-logo',transform:'translate(300,175)'});
+  const lp=svgEl('path',{d:'M0 14 L9 -8 L13 -8 L9 2 L18 2 L2 26 L7 6 L-2 6 Z',fill:'#8a8c90'});
+  logoG.appendChild(lp);
+  const lt=svgEl('text',{x:24,y:10,fill:'#8a8c90','font-size':'15','font-weight':'700',style:'letter-spacing:.03em'});lt.textContent='VESC';logoG.appendChild(lt);
+  const lr=svgEl('text',{x:24+68,y:4,fill:'#8a8c90','font-size':'8'});lr.textContent='®';logoG.appendChild(lr);
+  svg.appendChild(logoG);
+  // Settings-Zahnrad unten-links im Speed-Kreis (frei, kein Overlap mit Temp-Gauge)
+  const gear=svgEl('g',{class:'gearIcon',id:'gearIcon',transform:`translate(${GAUGES.speed.cx-GAUGES.speed.r*0.70},${GAUGES.speed.cy+GAUGES.speed.r*0.72})`});
+  gear.appendChild(svgEl('circle',{r:16,fill:'#232426',stroke:'#3a3b3e'}));
+  const gp=svgEl('path',{d:'M0-9a9 9 0 1 1 0 18 9 9 0 0 1 0-18m0 3a6 6 0 1 0 0 12 6 6 0 0 0 0-12',fill:'#7a7c80'});
+  gear.appendChild(gp);
+  svg.appendChild(gear);
+  // Titel + Werte + Nadeln pro Gauge
+  for(const id in GAUGES){
+    const g=GAUGES[id],cx=g.cx,cy=g.cy,R=g.r;
+    const titleY=cy-R*(g.big?0.52:g.mid?0.50:0.46);
+    if(g.title.includes('\n')){
+      g.title.split('\n').forEach((ln,i)=>{const t=svgEl('text',{x:cx,y:titleY+i*11,class:'gtitle'});t.textContent=ln;svg.appendChild(t)});
+    }else{const t1=svgEl('text',{x:cx,y:titleY,class:'gtitle'});t1.textContent=g.title;svg.appendChild(t1)}
+    const valY=cy+R*(g.big?0.22:g.mid?0.20:0.17);
+    const valSize=g.big?46:g.mid?26:22;
+    const valEl=svgEl('text',{x:cx,y:valY,class:'gval',style:`font-size:${valSize}px`});
+    valEl.textContent='0';svg.appendChild(valEl);
+    const uY=valY+(g.big?26:g.mid?17:14);
+    const uEl=svgEl('text',{x:cx,y:uY,class:'gvalUnit',style:`font-size:${g.big?15:11}px`});
+    uEl.textContent=g.unit;svg.appendChild(uEl);
+    let subEl=null;
+    if(g.sub){subEl=svgEl('text',{x:cx,y:uY+16,class:'glabel',style:'font-size:9px'});subEl.textContent=g.sub;svg.appendChild(subEl)}
+    let rangeEl=null,rangePctEl=null;
+    if(g.extra==='range'){
+      const [rtx,rty]=[cx+R*0.34,cy+R*0.03];
+      const rl=svgEl('text',{x:rtx,y:rty-14,class:'gtitle',style:'font-size:8px'});rl.textContent='KM RANGE';svg.appendChild(rl);
+      rangeEl=svgEl('text',{x:rtx,y:rty+6,class:'gval',style:'font-size:17px'});rangeEl.textContent='∞';svg.appendChild(rangeEl);
+      rangePctEl=svgEl('text',{x:rtx,y:rty+22,class:'gvalUnit',style:'font-size:10px'});rangePctEl.textContent='0%';svg.appendChild(rangePctEl);
+    }
+    const needleG=svgEl('g',{class:'gneedle'});
+    const nLen=R*0.58,nBack=R*0.16;
+    needleG.appendChild(svgEl('path',{d:`M ${cx-1.8} ${cy} L ${cx} ${(cy-nLen).toFixed(2)} L ${cx+1.8} ${cy} Z`,fill:g.needle}));
+    needleG.appendChild(svgEl('path',{d:`M ${cx-1.2} ${cy} L ${cx} ${(cy+nBack).toFixed(2)} L ${cx+1.2} ${cy} Z`,fill:g.needle,opacity:'.5'}));
+    svg.appendChild(needleG);
+    svg.appendChild(svgEl('circle',{cx,cy,r:R*0.045,fill:'#1a1b1d',stroke:'#3a3b3e','stroke-width':1}));
+    gaugeState[id]={needleG,valEl,subEl,rangeEl,rangePctEl,deg:ARC_START};
+  }
+  host.appendChild(svg);
+  $('#gearIcon')?.addEventListener('click',()=>showTab('conn'));
+}
+function updateGauge(id,rawVal){
+  const g=GAUGES[id],st=gaugeState[id];if(!st)return;
+  const v=rawVal==null?(g.min<0?0:g.min):Math.max(g.min,Math.min(g.max,rawVal));
+  const frac=(v-g.min)/(g.max-g.min),targetDeg=ARC_START+ARC_SPAN*frac;
+  st.deg+=(targetDeg-st.deg)*0.22;
+  st.needleG.setAttribute('transform',`rotate(${st.deg.toFixed(2)} ${g.cx} ${g.cy})`);
+  st.valEl.textContent=rawVal==null?'0':(g.fmt?g.fmt(rawVal):(g.unit==='km/h'?rawVal.toFixed(1):Math.round(rawVal)));
+  if(id==='battery'&&st.rangePctEl)st.rangePctEl.textContent=Math.round(rawVal==null?0:rawVal)+'%';
+}
+function drawAllGauges(){
+  updateGauge('current',cur('current'));
+  updateGauge('power',cur('power'));
+  updateGauge('duty',null);
+  updateGauge('speed',cur('speed'));
+  updateGauge('battery',cur('battery'));
+  updateGauge('temp',cur('temp'));
+  updateGauge('cons',null);
+}
+
+/* ---------- Render loop ---------- */
+const fmt=(v,d)=>v==null?'—':(d?v.toFixed(d):String(Math.round(v)));
+function integrate(){
+  const now=performance.now(),dt=Math.min(1,(now-S.lastInt)/1000);S.lastInt=now;
+  const p=cur('power'),s=cur('speed');
+  if(p!=null){S.wh+=p*dt/3600;if(p>S.peakW)S.peakW=p}
+  if(s!=null){S.km+=s*dt/3600;if(s>S.maxV)S.maxV=s}
+}
+setInterval(integrate,100);
+function recSample(){
+  if(!S.rec)return;
+  S.rec.samples.push([Date.now()-S.rec.start,...['speed','power','voltage','current','battery','temp'].map(k=>{const v=cur(k);return v==null?'':+v.toFixed(2)})]);
+}
+setInterval(recSample,200);
+function frame(){
+  const p=cur('power'),s=cur('speed'),any=p!=null||s!=null||cur('voltage')!=null;
+  $('#tKm').textContent=S.km.toFixed(1);$('#tTripKm').textContent=S.km.toFixed(1);
+  if(S.rideStartT)$('#tUptime').textContent=fmtDur(Date.now()-S.rideStartT);
+  const b=$('#banner');
+  if(any){b.style.display='none'}
+  else{b.style.display='block';b.innerHTML=S.connected?'Verbunden, aber noch keine zugeordneten Messwerte. Im Tab <b>Verbinden</b> → Byte-Analyse die Bytes zuordnen (Tab <b>Mapping</b>: Skalierung).':'Noch keine Daten. Unter <b>Verbinden</b> den Scooter koppeln – oder unten <b>Demo</b> starten.'}
+  drawAllGauges();
+  drawLiveGraph();
+  requestAnimationFrame(frame);
+}
+const fmtDur=ms=>{const s=Math.floor(ms/1000);return `${pad(Math.floor(s/3600))}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}`};
+
+/* ---------- Tree / selects ---------- */
+function charLabel(r){return `${shortUuid(r.svc)} / ${shortUuid(r.uuid)}`}
+function renderTree(){
+  const el=$('#tree');
+  if(!S.chars.size){el.innerHTML='<span class="mute">Noch nichts gefunden.</span>';return}
+  const bySvc=new Map();for(const r of S.chars.values()){if(!bySvc.has(r.svc))bySvc.set(r.svc,[]);bySvc.get(r.svc).push(r)}
+  let h='';
+  for(const [svc,list] of bySvc){
+    const nm=KNOWN[shortUuid(svc)];
+    h+=`<div class="svc mono">${esc(shortUuid(svc))}<small>${nm?esc(nm):''}</small></div>`;
+    for(const r of list){
+      const p=r.props,pills=[];
+      if(p.read)pills.push('<span class="pill">read</span>');
+      if(p.write)pills.push('<span class="pill w">write</span>');
+      if(p.writeWithoutResponse)pills.push('<span class="pill w">write-no-resp</span>');
+      if(p.notify)pills.push('<span class="pill n">notify</span>');
+      if(p.indicate)pills.push('<span class="pill n">indicate</span>');
+      const kn=KNOWN[shortUuid(r.uuid)];
+      h+=`<div class="chr"><div class="u mono">${esc(shortUuid(r.uuid))} <span class="mute">${kn?esc(kn):''}</span></div><div>${pills.join('')}</div>
+        <div class="row" style="margin-top:4px">
+          ${p.read?`<button class="btn sm" data-act="read" data-k="${esc(r.key)}">Lesen</button>`:''}
+          ${(p.notify||p.indicate)?`<button class="btn sm" data-act="sub" data-k="${esc(r.key)}">${r.sub?'Abo beenden':'Abonnieren'}</button>`:''}
+          <span class="mute" style="font-size:12px"><span id="cnt-${r.idx}">${r.n}</span> Frames</span>
+        </div><div class="hex" id="last-${r.idx}">${r.last?toHex(r.last):''}</div></div>`;
+    }
+  }
+  el.innerHTML=h;
+}
+$('#tree').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-act]');if(!b)return;const r=S.chars.get(b.dataset.k);if(!r)return;
+  if(b.dataset.act==='read')await readChar(r);
+  if(b.dataset.act==='sub'){r.sub?await unsubscribe(r):await subscribe(r);renderTree()}
+});
+function renderSelects(){
+  const opts=[...S.chars.values()].map(r=>`<option value="${esc(r.key)}">${esc(charLabel(r))}</option>`).join('');
+  const keepA=$('#anaChar').value,keepW=$('#wrChar').value,keepL=$('#logChar').value;
+  $('#anaChar').innerHTML=opts;$('#wrChar').innerHTML=[...S.chars.values()].filter(r=>r.props.write||r.props.writeWithoutResponse).map(r=>`<option value="${esc(r.key)}">${esc(charLabel(r))}</option>`).join('');
+  $('#logChar').innerHTML='<option value="">alle</option>'+opts;
+  if(S.chars.has(keepA))$('#anaChar').value=keepA;else{const n=[...S.chars.values()].find(r=>r.props.notify||r.props.indicate);if(n)$('#anaChar').value=n.key}
+  if(keepW)$('#wrChar').value=keepW;$('#logChar').value=keepL;
+  buildAnaTable();
+}
+
+/* ---------- Analyzer ---------- */
+let anaKey='',anaRows=0;
+function buildAnaTable(){
+  const r=S.chars.get($('#anaChar').value);const tb=$('#anaTbl tbody');
+  anaKey=r?r.key:'';const n=r&&r.last?Math.min(r.last.length,64):0;anaRows=n;tb.innerHTML='';
+  for(let i=0;i<n;i++){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i}</td><td class="mono"></td><td></td><td><select data-i="${i}"><option value="">—</option>${FIELDS.map(f=>`<option value="${f.id}">${f.short}</option>`).join('')}</select></td><td></td><td></td><td></td><td></td>`;
+    tb.appendChild(tr);
+  }
+  syncAssign();
+}
+function syncAssign(){
+  $$('#anaTbl select').forEach(s=>{const i=+s.dataset.i;const f=FIELDS.find(f=>{const m=S.mapping[f.id];return m.src===anaKey&&m.off===i});const v=f?f.id:'';if(s.value!==v)s.value=v})
+}
+$('#anaTbl').addEventListener('change',e=>{
+  const s=e.target.closest('select');if(!s||!anaKey)return;const i=+s.dataset.i,id=s.value;
+  for(const f of FIELDS){const m=S.mapping[f.id];if(m.src===anaKey&&m.off===i&&f.id!==id)m.src=''}
+  if(id){const r=S.chars.get(anaKey);const m=S.mapping[id];m.src=anaKey;m.off=i;m.len=(r&&r.last&&i+1<r.last.length)?2:1;m.le=true;
+    toast(`${FIELDS.find(f=>f.id===id).label} ← Byte ${i} (${m.len*8}-Bit LE). Skalierung im Tab „Mapping“.`)}
+  store.set('tx01.mapping',S.mapping);renderMapping();syncAssign();
+});
+$('#anaChar').onchange=buildAnaTable;
+$('#anaReset').onclick=()=>{const r=S.chars.get(anaKey);if(r){r.min=[];r.max=[];r.u16=[]}};
+function updateAna(){
+  const r=S.chars.get(anaKey);if(!r||!r.last)return;
+  if(Math.min(r.last.length,64)!==anaRows){buildAnaTable();return}
+  const b=r.last,dv=new DataView(b.buffer,b.byteOffset,b.byteLength);const rows=$('#anaTbl tbody').rows;
+  for(let i=0;i<rows.length;i++){
+    const c=rows[i].cells,chg=r.max[i]!==r.min[i];rows[i].classList.toggle('chg',chg);
+    c[1].textContent=b[i].toString(16).padStart(2,'0');c[7].textContent=b[i];
+    if(i+1<b.length){c[2].textContent=dv.getUint16(i,true);c[5].textContent=dv.getUint16(i,false);c[6].textContent=dv.getInt16(i,true);const o=r.u16&&r.u16[i];c[4].textContent=o?`${o.min}…${o.max}`:''}
+    else{c[2].textContent=c[4].textContent=c[5].textContent=c[6].textContent=''}
+  }
+  $('#anaInfo').textContent=`${b.length} Byte/Frame · ${r.rate} Frames/s`;
+}
+
+/* ---------- Mapping UI ---------- */
+function renderMapping(){
+  const keys=new Set([...S.chars.keys()]);for(const f of FIELDS){if(S.mapping[f.id].src)keys.add(S.mapping[f.id].src)}
+  const srcOpts=['<option value="">— nicht zugeordnet —</option>',...[...keys].map(k=>{const r=S.chars.get(k);const lbl=r?charLabel(r):k.split('/').map(shortUuid).join(' / ');return `<option value="${esc(k)}">${esc(lbl)}${r?'':' (offline)'}</option>`})].join('');
+  $('#mapRows').innerHTML=FIELDS.map(f=>{const m=S.mapping[f.id];return `<div class="map-row" data-f="${f.id}">
+    <div class="nm">${f.label} <span class="mute">(${f.unit})</span> <span class="pv" id="pv-${f.id}"></span></div>
+    <div class="row">
+      <label class="f">Characteristic<select data-p="src">${srcOpts}</select></label>
+      <label class="f">Byte ab<input type="number" data-p="off" min="0" value="${m.off}"></label>
+      <label class="f">Länge<select data-p="len"><option value="1">1</option><option value="2">2</option><option value="4">4</option></select></label>
+      <label class="f">Reihenfolge<select data-p="le"><option value="1">little-endian</option><option value="0">big-endian</option></select></label>
+      <label class="f">Vorzeichen<select data-p="signed"><option value="0">ohne</option><option value="1">mit</option></select></label>
+      <label class="f">Skalierung<input type="number" data-p="scale" step="any" value="${m.scale}"></label>
+      <label class="f">Offset<input type="number" data-p="add" step="any" value="${m.add}"></label>
+      <label class="f">Nur wenn Frame beginnt mit (Hex)<input data-p="prefix" class="mono" style="width:120px" placeholder="z. B. 55 AA" value="${esc(m.prefix)}"></label>
+    </div></div>`}).join('');
+  for(const f of FIELDS){const m=S.mapping[f.id],row=$(`.map-row[data-f="${f.id}"]`);
+    row.querySelector('[data-p=src]').value=m.src;row.querySelector('[data-p=len]').value=m.len;row.querySelector('[data-p=le]').value=m.le?'1':'0';row.querySelector('[data-p=signed]').value=m.signed?'1':'0'}
+}
+$('#mapRows').addEventListener('change',e=>{
+  const row=e.target.closest('.map-row'),p=e.target.dataset.p;if(!row||!p)return;const m=S.mapping[row.dataset.f];let v=e.target.value;
+  if(p==='off'||p==='len')v=parseInt(v)||0;else if(p==='scale'||p==='add')v=parseFloat(v)||(p==='scale'?1:0);
+  else if(p==='le'||p==='signed')v=v==='1';
+  m[p]=v;store.set('tx01.mapping',S.mapping);syncAssign();
+});
+$('#maxW').onchange=e=>{S.maxW=Math.max(100,+e.target.value||2000);store.set('tx01.maxW',S.maxW);buildAllGauges()};
+$('#maxKmh').onchange=e=>{S.maxKmh=Math.max(5,+e.target.value||50);store.set('tx01.maxKmh',S.maxKmh);buildAllGauges()};
+$('#maxA').onchange=e=>{S.maxA=Math.max(5,+e.target.value||60);store.set('tx01.maxA',S.maxA);buildAllGauges()};
+
+/* ---------- Log ---------- */
+let logDirty=true;
+function renderLog(){
+  if($('#logPause').checked&&!logDirty)return;
+  const f=$('#logChar').value;const box=$('#logBox');
+  const stick=box.scrollTop+box.clientHeight>=box.scrollHeight-30;
+  const lines=[];for(let i=S.raw.length-1;i>=0&&lines.length<250;i--){const e=S.raw[i];if(f&&e.key!==f&&e.dir!=='!')continue;
+    lines.push(`${clock(e.t)} ${e.dir==='tx'?'▶':e.dir==='!'?'!':'◀'} ${e.key?e.key.split('/').map(shortUuid).join('/')+'  ':''}${e.hex}`)}
+  box.textContent=lines.reverse().join('\n');if(stick)box.scrollTop=box.scrollHeight;logDirty=false;
+}
+$('#logPause').onchange=()=>{logDirty=true};
+$('#logChar').onchange=()=>{logDirty=true;renderLog()};
+$('#logClear').onclick=()=>{S.raw.length=0;logDirty=true;renderLog()};
+$('#logCsv').onclick=()=>download(`tx01-rohdaten-${Date.now()}.csv`,'zeit;richtung;characteristic;hex\n'+S.raw.map(e=>`${new Date(e.t).toISOString()};${e.dir};${e.key};${e.hex}`).join('\n'));
+
+/* ---------- Rides (IndexedDB) ---------- */
+const idb={db:null,
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open('tx01',1);r.onupgradeneeded=()=>r.result.createObjectStore('rides',{keyPath:'id',autoIncrement:true});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+  async tx(mode,fn){if(!this.db)this.db=await this.open();return new Promise((res,rej)=>{const t=this.db.transaction('rides',mode),rq=fn(t.objectStore('rides'));t.oncomplete=()=>res(rq&&rq.result);t.onerror=()=>rej(t.error)})}};
+const CSV_HEAD='ms;kmh;watt;volt;ampere;akku_prozent;temp_c';
+const ridesCsv=r=>CSV_HEAD+'\n'+r.samples.map(s=>s.join(';')).join('\n');
+async function toggleRec(){
+  const b=$('#recBtn');
+  if(!S.rec){S.rec={start:Date.now(),samples:[]};b.classList.add('on');b.textContent='■ STOP';toast('Aufzeichnung läuft')}
+  else{
+    const r=S.rec;S.rec=null;b.classList.remove('on');b.textContent='● REC';
+    if(r.samples.length<2){toast('Zu kurz – verworfen');return}
+    const col=i=>r.samples.map(s=>s[i]).filter(v=>v!=='');
+    const maxOf=a=>a.length?Math.max(...a):0;
+    const ride={start:r.start,dur:Date.now()-r.start,maxW:maxOf(col(2)),maxKmh:maxOf(col(1)),samples:r.samples};
+    try{await idb.tx('readwrite',st=>st.add(ride));toast('Fahrt gespeichert')}
+    catch{download(`tx01-fahrt-${r.start}.csv`,ridesCsv(ride));toast('Speicher nicht verfügbar – CSV heruntergeladen')}
+    renderRides();
+  }
+}
+async function renderRides(){
+  let list=[];try{list=await idb.tx('readonly',st=>st.getAll())}catch{}
+  const el=$('#rides');
+  if(!list.length){el.innerHTML='<span class="mute">Noch keine Fahrten. Mit „● REC“ oben aufzeichnen.</span>';return}
+  el.innerHTML=list.reverse().map(r=>{const d=new Date(r.start),m=Math.round(r.dur/60000*10)/10;
+    return `<div class="chr row clickable" style="justify-content:space-between" data-open="${r.id}"><div>${d.toLocaleString('de-DE')}<br><span class="mute" style="font-size:13px">${m} min · max ${Math.round(r.maxW)} W · max ${r.maxKmh.toFixed(1)} km/h</span></div>
+    <div class="row"><button class="btn sm" data-ride="csv" data-id="${r.id}">CSV</button><button class="btn sm" data-ride="del" data-id="${r.id}">Löschen</button></div></div>`}).join('');
+}
+$('#rides').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-ride]');
+  if(b){const id=+b.dataset.id;
+    if(b.dataset.ride==='csv'){const r=await idb.tx('readonly',st=>st.get(id));if(r)download(`tx01-fahrt-${r.start}.csv`,ridesCsv(r))}
+    else{await idb.tx('readwrite',st=>st.delete(id));renderRides()}
+    return;
+  }
+  const row=e.target.closest('[data-open]');if(row)openRide(+row.dataset.open);
+});
+$('#recBtn').onclick=toggleRec;
+
+/* ---------- Write (Experten) ---------- */
+async function sendWrite(){
+  if(!$('#wrOk').checked)return toast('Bitte erst „Ich weiß, was ich tue“ anhaken');
+  const r=S.chars.get($('#wrChar').value),data=parseHex($('#wrHex').value);
+  if(!S.connected||!r)return toast('Nicht verbunden / keine beschreibbare Characteristic');
+  if(!data)return toast('Hex ungültig (gerade Anzahl Zeichen 0–9, A–F)');
+  const once=async()=>{try{if(r.props.writeWithoutResponse)await r.ch.writeValueWithoutResponse(data);else await r.ch.writeValueWithResponse(data);logRaw(Date.now(),r.key,data,'tx')}catch(e){toast('Senden fehlgeschlagen: '+e.message);clearInterval(S.wrTimer)}};
+  clearInterval(S.wrTimer);await once();const ms=+$('#wrEvery').value;if(ms>=20)S.wrTimer=setInterval(once,ms);
+}
+$('#wrSend').onclick=sendWrite;$('#wrStop').onclick=()=>clearInterval(S.wrTimer);
+
+/* ---------- Buttons / Init ---------- */
+$('#connBtn').onclick=connect;$('#discBtn').onclick=disconnect;
+$('#demoBtn').onclick=()=>S.demo?stopDemo():startDemo();
+$('#resetStats').onclick=()=>{S.peakW=0;S.maxV=0;S.wh=0;S.km=0;S.rideStartT=(S.connected||S.demo)?Date.now():null};
+$('#fsBtn').onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}catch{}};
+
+setInterval(()=>{
+  for(const r of S.chars.values()){r.rate=r.n-r.nPrev;r.nPrev=r.n}
+  const pps=S.pkts-S.pktsPrev;S.pktsPrev=S.pkts;$('#pps').textContent=(S.connected||S.demo)?pps+' /s':'';
+},1000);
+setInterval(()=>{
+  for(const r of S.chars.values()){const l=$('#last-'+r.idx);if(l&&r.last)l.textContent=toHex(r.last);const c=$('#cnt-'+r.idx);if(c)c.textContent=r.n}
+  if($('#tab-conn').classList.contains('act'))updateAna();
+  if($('#tab-map').classList.contains('act'))for(const f of FIELDS){const e=$('#pv-'+f.id);if(e){const v=f.id==='power'?cur('power'):cur(f.id);e.textContent=v==null?'':'= '+v.toFixed(f.dec)+' '+f.unit}}
+  if($('#tab-log').classList.contains('act')&&!$('#logPause').checked)renderLog();
+},250);
+
+(function init(){
+  $('#extraUuids').value=store.get('tx01.extra','');$('#namePrefix').value=store.get('tx01.prefix','');
+  $('#maxW').value=S.maxW;$('#maxKmh').value=S.maxKmh;$('#maxA').value=S.maxA;
+  if(!navigator.bluetooth){const m=$('#supportMsg');m.style.display='block';
+    m.innerHTML='Dieser Browser unterstützt Web Bluetooth nicht. Nutzbar: Chrome/Edge auf Android, Windows, macOS, Linux. iPhone/iPad: Safari und Chrome gehen nicht – dort z. B. den Browser „Bluefy“.';$('#connBtn').disabled=true}
+  else if(!window.isSecureContext){const m=$('#supportMsg');m.style.display='block';m.textContent='Web Bluetooth braucht HTTPS oder localhost.'}
+  S.lastInt=performance.now();
+  renderMapping();renderRides();showTab(store.get('tx01.tab','dash'));setStatus();buildAllGauges();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
